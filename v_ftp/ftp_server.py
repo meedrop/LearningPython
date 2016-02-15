@@ -3,6 +3,7 @@
 #能够put以及get文件，并且检查文件是否存在(包括本地端以及远端)，同时检查本地客户端命令是否正确
 #对传输文件的完整一致性进行MD5校验
 #使用base64进行用户密码认证
+#本地远程执行cd,ls,pwd等命令
 import os
 import re
 import hashlib
@@ -57,6 +58,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         md5.update(d)
         return md5.hexdigest().encode('utf-8')
 
+    def os_command(self):
+        cmd=self.remote_cmd.strip('r')
+        if cmd == 'ls':
+            cmd='ls -l'
+        if cmd == 'cd':#如果命令是cd,执行os.chdir(),不执行os.popen()
+            path=self.file_name
+            os.chdir(path)
+            result='change remote directory successed'
+        else:
+            result=os.popen(cmd).read()
+        self.request.sendall(result.encode('utf-8'))
+
     def handle(self):
         passwd_dict={'jack':'amFjaw==','marry':'bWFycnk='}
         #接收用户名
@@ -81,12 +94,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 break
             else:
                 self.remote_cmd=re.split(r'\s+',self.data_from_client.decode('utf-8'))[0]
-                self.file_name=re.split(r'\s+',self.data_from_client.decode('utf-8'))[1]
+                try:
+                    self.file_name=re.split(r'\s+',self.data_from_client.decode('utf-8'))[1]
+                except IndexError as e:
+                    pass
             if self.remote_cmd == 'put':
                 self.recvfile()
             if self.remote_cmd == 'get':
                 self.sendfile()
-            #if othercommand
+            if self.remote_cmd in ('rls','rcd','rpwd'):
+                self.os_command()
             #ls等相关命令检查put文件名是否存在，以及get的文件名是否存在，还有用户账号及密码校验,权限！
             #cd ls
 

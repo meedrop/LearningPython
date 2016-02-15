@@ -26,6 +26,16 @@ def md5sum(file):
 def base64_password(password):
     return base64.b64encode(password.encode('utf-8'))
 
+def os_command(command):
+    if re.split(r'\s+',command)[0] == 'ls':
+        command='ls -l'
+    if re.split(r'\s+',command)[0] == 'cd':
+        path=re.split(r'\s+',command)[1]
+        os.chdir(path)
+        return 'change local directory successed'
+    else:
+        return os.popen(command).read()
+
 print('--------------------------------------')
 print('|    Weclome to Linqz Ftp Server     |')
 print('|           Version 1.0              |')
@@ -43,16 +53,30 @@ s.send(base64_password(PASSWD))
 #接收server端验证，密码是否正确
 get_verify=s.recv(1024)
 if get_verify == b'pass':
-    print('Login sucessfule!!^_^')
+    print('Login sucessful!!^_^')
     while 1:
         COMMAND=input('ftp>')
         if COMMAND=='exit':break #break
         #帮助说明函数
         elif COMMAND=='help' or COMMAND=='?':
-            print('put\t\tsend files(excluded path) to remote ftpserver')
-            print('get\t\tget files from remote ftpserver')
-            print('exit\t\tlogout')
-            print('help|?\t\tget help informaton')
+            print('\t\tput\t\tsend files(excluded path) to remote ftpserver')
+            print('\t\tget\t\tget files from remote ftpserver')
+            print('\t\texit\t\tlogout')
+            print('\t\thelp|?\t\tget help informaton')
+            print('\t\tls\t\tlist local files')
+            print('\t\tcd\t\tchange local path')
+            print('\t\tpwd\t\tlist local current path')
+            print('\t\trls\t\tlist remote files')
+            print('\t\trcd\t\tchange remote path')
+            print('\t\trpwd\t\tlist remote current path')
+        #客户端切换目录等命令命令
+        elif re.split(r'\s+',COMMAND)[0] in ('ls','cd','pwd','rls','rcd','rpwd'):
+            if re.split(r'\s+',COMMAND)[0] in ('ls','cd','pwd'):
+                print(os_command(COMMAND))
+            else:
+                s.sendall(COMMAND.encode('utf-8'))
+                remote_cmd_message=s.recv(40960).decode('utf-8')
+                print(remote_cmd_message)
         elif 'put' in COMMAND or 'get' in COMMAND:
             cmd=re.split(r'\s+',COMMAND)[0]
             file_name=re.split(r'\s+',COMMAND)[1]
